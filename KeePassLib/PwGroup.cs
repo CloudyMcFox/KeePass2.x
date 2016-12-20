@@ -881,6 +881,9 @@ namespace KeePassLib
 					if(bExcludeExpired && pe.Expires && (dtNow > pe.ExpiryTime))
 						return true; // Skip
 
+                    if (-1 != listStorage.IndexOf(pe)) {
+                        return true; // Skip
+                    }
 					listStorage.Add(pe);
 					return true;
 				};
@@ -988,7 +991,9 @@ namespace KeePassLib
 				}
 			}
 
-			if(bMatch) lResults.Add(pe);
+            if (bMatch && -1 == lResults.IndexOf(pe)) {
+                lResults.Add(pe);
+            }
 		}
 
 		public List<string> BuildEntryTagsList()

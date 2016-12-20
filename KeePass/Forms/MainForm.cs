@@ -27,8 +27,13 @@ using System.IO;
 using System.Media;
 using System.Security;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
+using System.Windows.Automation;
 using System.Windows.Forms;
+
+using System.Runtime.InteropServices;
+using System.Windows.Interop;
 
 using KeePass.App;
 using KeePass.App.Configuration;
@@ -50,6 +55,7 @@ using KeePassLib.Utility;
 using KeePassLib.Security;
 using KeePassLib.Delegates;
 using KeePassLib.Serialization;
+using NDde.Client;
 
 using NativeLib = KeePassLib.Native.NativeLib;
 
@@ -1086,7 +1092,7 @@ namespace KeePass.Forms
         private void OnShowAllEntries(object sender, EventArgs e)
         {
             PwGroup pg = null;
-            PerformQuickFind(string.Empty, KPRes.AllEntriesTitle, true, false, ref pg);
+            PerformQuickFind(string.Empty, KPRes.AllEntriesTitle, true, false, ref pg, false);
         }
 
         private void OnPwListFind(object sender, EventArgs e)
@@ -1242,7 +1248,7 @@ namespace KeePass.Forms
             // Asynchronous invocation allows to cleanly process
             // an Enter keypress before blocking the UI
             BeginInvoke(new PerformQuickFindDelegate(PerformQuickFind),
-                strSearch, strGroupName, false, true, null, true);
+                strSearch, strGroupName, false, true, null, false, true);
 
             m_bBlockQuickFind = false;
         }
@@ -2836,14 +2842,14 @@ namespace KeePass.Forms
                     if (website.StartsWith("www.")) {
                         website = website.Substring(4);
                     }
-                    // Attempt to remove all before the domain (before the seoncd dot from the right?!?!
+                    // Attempt to remove all before the domain (before the seoncd dot from the right?!?!)
                     // (hacky hopefully assumptions are right)
                     string[] splitString = website.Split('.');
                     // ASSUMPTION! last one is top level domain
                     if (splitString.Length > 1) {
                         website = splitString[splitString.Length - 2];
                     }
-                    openSites.Add(website);
+                    openSites.Add(website.ToLower().Trim());
                 }
             }
             string strGroupName = KPRes.SearchGroupName + " (\"" + "Open Tabs" + "\" ";
@@ -2851,7 +2857,190 @@ namespace KeePass.Forms
             strGroupName += m_docMgr.ActiveDatabase.RootGroup.Name + ")";
             PwGroup pg = new PwGroup(true, true, strGroupName, PwIcon.EMailSearch);
             BeginInvoke(new PerformQuickFindListDelegate(PerformQuickFind),
-                openSites, strGroupName, false, true, pg);
+                openSites, strGroupName, false, true, pg, true);
+        }
+        public delegate bool Win32Callback(IntPtr hwnd, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+        [DllImport("user32.Dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool EnumChildWindows(IntPtr parentHandle, Win32Callback callback, IntPtr lParam);
+
+        List<IntPtr> GetRootWindowsOfProcess(int pid)
+        {
+            List<IntPtr> rootWindows = GetChildWindows(IntPtr.Zero);
+            List<IntPtr> dsProcRootWindows = new List<IntPtr>();
+            foreach (IntPtr hWnd in rootWindows) {
+                uint lpdwProcessId;
+                GetWindowThreadProcessId(hWnd, out lpdwProcessId);
+                if (lpdwProcessId == pid)
+                    dsProcRootWindows.Add(hWnd);
+            }
+            return dsProcRootWindows;
+        }
+
+
+        public static List<IntPtr> GetChildWindows(IntPtr parent)
+        {
+            List<IntPtr> result = new List<IntPtr>();
+            GCHandle listHandle = GCHandle.Alloc(result);
+            try {
+                Win32Callback childProc = new Win32Callback(EnumWindow);
+                EnumChildWindows(parent, childProc, GCHandle.ToIntPtr(listHandle));
+            } finally {
+                if (listHandle.IsAllocated)
+                    listHandle.Free();
+            }
+            return result;
+        }
+
+        private static bool EnumWindow(IntPtr handle, IntPtr pointer)
+        {
+            GCHandle gch = GCHandle.FromIntPtr(pointer);
+            List<IntPtr> list = gch.Target as List<IntPtr>;
+            if (list == null) {
+                throw new InvalidCastException("GCHandle Target could not be cast as List<IntPtr>");
+            }
+            list.Add(handle);
+            return true;
+        }
+
+        private void firefoxToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            List<string> openSites = new List<string>();
+            // there are always multiple chrome processes, so we have to loop through all of them to find the
+            // inspect only has tab items for the active window :( when a window is not active the tab items go away :(
+            Process[] procsFireFox = Process.GetProcessesByName("firefox");
+            // C:\Program Files (x86)\Windows Kits\8.1\bin\x86\inspect.exe to see the tree:
+            // now looks like:  
+
+            /*
+             Ancestors:	"Browser tabs" tool bar
+                        "Some tab" tab item
+             */
+            foreach (Process firefox in procsFireFox) {
+
+                // the chrome process must have a window
+                List<IntPtr> windows = GetRootWindowsOfProcess(firefox.Id);
+
+                // manually walk through the tree, searching using TreeScope.Descendants is too slow (even if it's more reliable)
+                try {
+                    foreach (IntPtr ptr in windows) {
+                        AutomationElement element = AutomationElement.FromHandle(ptr);
+                        AutomationElementCollection acFireFox = element.FindAll(TreeScope.Children, new PropertyCondition(AutomationElement.NameProperty, "Browser tabs"));
+                        foreach (AutomationElement aeFireFox in acFireFox) {
+                            AutomationElement childFireFox = TreeWalker.RawViewWalker.GetFirstChild(aeFireFox);
+                            while (childFireFox != null) {
+                                AutomationElementCollection acEmpty = childFireFox.FindAll(TreeScope.Children, new PropertyCondition(AutomationElement.LocalizedControlTypeProperty, "tab item"));
+                                foreach (AutomationElement aeTab in acEmpty) { // for each Firefox-> "?????" tab item
+
+                                    if (aeTab.Current.Name.Equals("New Tab")) {
+                                        continue;
+                                    }
+                                    string[] splitName = aeTab.Current.Name.Split(' '); // split all by space :( needed since we use these string to match (need a bettert way)
+                                    foreach (string str in splitName) {
+                                        // strip punctuation
+                                        Regex rgx = new Regex("[^a-zA-Z0-9]");
+                                        string str2 = rgx.Replace(str, "");
+                                        if (str2.Length > 3) { //filter small words
+                                            openSites.Add(str2);
+                                        }
+                                    }
+                                }
+                                childFireFox = TreeWalker.RawViewWalker.GetNextSibling(childFireFox);
+                            }
+                        }
+                    }
+                } catch (Exception) {
+                    Debug.Assert(false, "Chrome changed something?");
+                    continue;
+                }
+            }
+
+            string strGroupName = KPRes.SearchGroupName + " (\"" + "Open Tabs" + "\" ";
+            strGroupName += KPRes.SearchResultsInSeparator + " ";
+            strGroupName += m_docMgr.ActiveDatabase.RootGroup.Name + ")";
+            PwGroup pg = new PwGroup(true, true, strGroupName, PwIcon.EMailSearch);
+            BeginInvoke(new PerformQuickFindListDelegate(PerformQuickFind),
+                openSites, strGroupName, false, true, pg, true);
+        }
+
+        private void chromeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            List<string> openSites = new List<string>();
+            // there are always multiple chrome processes, so we have to loop through all of them to find the
+            // inspect only has tab items for the active window :( when a window is not active the tab items go away :(
+            Process[] procsChrome = Process.GetProcessesByName("chrome");
+            // C:\Program Files (x86)\Windows Kits\8.1\bin\x86\inspect.exe to see the tree:
+            // now looks like:  
+
+            /*
+             Ancestors:	"Tab Name" tab item
+                        "" tab
+	                    "" 
+	                    "" 
+	                    "Google Chrome" 
+	                    MainWindow
+             */
+            foreach (Process chrome in procsChrome) {
+                // the chrome process must have a window
+                List<IntPtr> windows = GetRootWindowsOfProcess(chrome.Id);
+
+                // manually walk through the tree, searching using TreeScope.Descendants is too slow (even if it's more reliable)
+                try {
+                    foreach (IntPtr ptr in windows) {
+                        AutomationElement element = AutomationElement.FromHandle(ptr);
+                        if (element == null) {
+                            return;
+                        }
+                        AutomationElementCollection acGoogleChrome = element.FindAll(TreeScope.Children, new PropertyCondition(AutomationElement.NameProperty, "Google Chrome"));
+                        foreach (AutomationElement aeGoogleChrome in acGoogleChrome) { // For each "Google Chrome"
+                            AutomationElement childAeGoogleChrome = TreeWalker.RawViewWalker.GetFirstChild(aeGoogleChrome);
+                            while (childAeGoogleChrome != null) {
+                                AutomationElementCollection acEmpty = childAeGoogleChrome.FindAll(TreeScope.Children, new PropertyCondition(AutomationElement.NameProperty, ""));
+                                foreach (AutomationElement aeEmpty in acEmpty) { // for each Google Chrome-> ""
+                                                                                 // look for another empty
+                                    AutomationElementCollection acEmpty2 = aeEmpty.FindAll(TreeScope.Children, new PropertyCondition(AutomationElement.LocalizedControlTypeProperty, "tab"));
+                                    foreach (AutomationElement aeEmpty2 in acEmpty2) { // for each Google Chrome-> "" -> "" -> "" Tab
+                                        AutomationElementCollection acTab = aeEmpty2.FindAll(TreeScope.Children, new PropertyCondition(AutomationElement.LocalizedControlTypeProperty, "tab item"));
+                                        foreach (AutomationElement aeTab in acTab) {// for each Google Chrome-> "" -> "" -> "" Tab -> "SOMETHING" Tabitem
+                                                                                    // now i need to get the tab item name 
+                                                                                    //"Facebook" tab item
+                                                                                    // Need ot get url?
+                                            if (aeTab.Current.Name.Equals("New Tab")) {
+                                                continue;
+                                            }
+                                            string[] splitName = aeTab.Current.Name.Split(' '); // split all by space :( needed since we use these string to match (need a bettert way)
+                                            foreach (string str in splitName) {
+                                                // strip punctuation
+                                                Regex rgx = new Regex("[^a-zA-Z0-9]");
+                                                string str2 = rgx.Replace(str, "");
+                                                if (str2.Length > 3) { //filter small words
+                                                    openSites.Add(str2);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                childAeGoogleChrome = TreeWalker.RawViewWalker.GetNextSibling(childAeGoogleChrome);
+                            }
+                        }
+                    }
+
+                } catch (Exception) {
+                    Debug.Assert(false, "Chrome changed something?");
+                    continue;
+                }
+            }
+
+            string strGroupName = KPRes.SearchGroupName + " (\"" + "Open Tabs" + "\" ";
+            strGroupName += KPRes.SearchResultsInSeparator + " ";
+            strGroupName += m_docMgr.ActiveDatabase.RootGroup.Name + ")";
+            PwGroup pg = new PwGroup(true, true, strGroupName, PwIcon.EMailSearch);
+            BeginInvoke(new PerformQuickFindListDelegate(PerformQuickFind),
+                openSites, strGroupName, false, true, pg, true);
         }
     }
 }

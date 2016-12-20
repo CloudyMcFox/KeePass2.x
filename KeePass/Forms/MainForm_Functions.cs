@@ -1900,7 +1900,7 @@ namespace KeePass.Forms
         }
 
         private delegate void PerformQuickFindDelegate(string strSearch,
-            string strGroupName, bool bForceShowExpired, bool bRespectEntrySearchingDisabled, ref PwGroup pg, bool fFinalSearch);
+            string strGroupName, bool bForceShowExpired, bool bRespectEntrySearchingDisabled, ref PwGroup pg, bool fParseBrowserSearch, bool fFinalSearch);
 
         /// <summary>
         /// Do a quick find. All entries of the currently opened database are searched
@@ -1910,7 +1910,7 @@ namespace KeePass.Forms
         /// <param name="strGroupName">Group name of the group that receives the search
         /// results.</param>
         private void PerformQuickFind(string strSearch, string strGroupName,
-            bool bForceShowExpired, bool bRespectEntrySearchingDisabled, ref PwGroup pg, bool fFinalSearch = true)
+            bool bForceShowExpired, bool bRespectEntrySearchingDisabled, ref PwGroup pg, bool fParseBrowser,  bool fFinalSearch = true)
         {
             Debug.Assert(strSearch != null);
             if (strSearch == null)
@@ -1948,6 +1948,10 @@ namespace KeePass.Forms
             sp.SearchInTitles = sp.SearchInUserNames =
                 sp.SearchInUrls = sp.SearchInNotes = sp.SearchInOther =
                 sp.SearchInUuids = sp.SearchInGroupNames = sp.SearchInTags = true;
+
+            if (fParseBrowser) {
+                sp.SearchInGroupNames = false;
+            }
             sp.SearchInPasswords = Program.Config.MainWindow.QuickFindSearchInPasswords;
             sp.RespectEntrySearchingDisabled = bRespectEntrySearchingDisabled;
 
@@ -1993,15 +1997,19 @@ namespace KeePass.Forms
         }
 
         private delegate void PerformQuickFindListDelegate(List<string> strSearchList,
-    string strGroupName, bool bForceShowExpired, bool bRespectEntrySearchingDisabled, ref PwGroup pg);
+    string strGroupName, bool bForceShowExpired, bool bRespectEntrySearchingDisabled, ref PwGroup pg, bool fParseBrowser);
 
         private void PerformQuickFind(List<string> strSearchList, string strGroupName,
-           bool bForceShowExpired, bool bRespectEntrySearchingDisabled, ref PwGroup pg)
+           bool bForceShowExpired, bool bRespectEntrySearchingDisabled, ref PwGroup pg, bool fParseBrowser)
         {
+            if (0 == strSearchList.Count) {
+                pg = new PwGroup(true, true, strGroupName, PwIcon.EMailSearch);
+                return;
+            }
             bool fIsFinal = false;
-            for (int i =0; i < strSearchList.Count; i++) {
+            for (int i = 0; i < strSearchList.Count; i++) {
                 fIsFinal = (i == strSearchList.Count - 1);
-                PerformQuickFind(strSearchList[i], strGroupName, bForceShowExpired, bRespectEntrySearchingDisabled, ref pg, fIsFinal);
+                PerformQuickFind(strSearchList[i], strGroupName, bForceShowExpired, bRespectEntrySearchingDisabled, ref pg, fParseBrowser, fIsFinal);
             }
         }
 

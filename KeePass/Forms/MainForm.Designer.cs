@@ -186,6 +186,9 @@
             this.m_menuHelpCheckForUpdates = new System.Windows.Forms.ToolStripMenuItem();
             this.m_menuHelpSep2 = new System.Windows.Forms.ToolStripSeparator();
             this.m_menuHelpAbout = new System.Windows.Forms.ToolStripMenuItem();
+            this.parseToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.iEToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.firefoxToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.m_toolMain = new KeePass.UI.CustomToolStripEx();
             this.m_tbNewDatabase = new System.Windows.Forms.ToolStripButton();
             this.m_tbOpenDatabase = new System.Windows.Forms.ToolStripButton();
@@ -232,17 +235,18 @@
             this.m_tvGroups = new KeePass.UI.CustomTreeViewEx();
             this.m_lvEntries = new KeePass.UI.CustomListViewEx();
             this.m_richEntryView = new KeePass.UI.CustomRichTextBoxEx();
-            this.parseToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.iEToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.chromeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.m_ctxGroupList.SuspendLayout();
             this.m_ctxPwList.SuspendLayout();
             this.m_menuMain.SuspendLayout();
             this.m_toolMain.SuspendLayout();
             this.m_statusMain.SuspendLayout();
             this.m_ctxTray.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.m_splitHorizontal)).BeginInit();
             this.m_splitHorizontal.Panel1.SuspendLayout();
             this.m_splitHorizontal.Panel2.SuspendLayout();
             this.m_splitHorizontal.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.m_splitVertical)).BeginInit();
             this.m_splitVertical.Panel1.SuspendLayout();
             this.m_splitVertical.Panel2.SuspendLayout();
             this.m_splitVertical.SuspendLayout();
@@ -1518,6 +1522,30 @@
             this.m_menuHelpAbout.Text = "&About KeePass...";
             this.m_menuHelpAbout.Click += new System.EventHandler(this.OnHelpAbout);
             // 
+            // parseToolStripMenuItem
+            // 
+            this.parseToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.iEToolStripMenuItem,
+            this.firefoxToolStripMenuItem,
+            this.chromeToolStripMenuItem});
+            this.parseToolStripMenuItem.Name = "parseToolStripMenuItem";
+            this.parseToolStripMenuItem.Size = new System.Drawing.Size(47, 20);
+            this.parseToolStripMenuItem.Text = "Parse";
+            // 
+            // iEToolStripMenuItem
+            // 
+            this.iEToolStripMenuItem.Name = "iEToolStripMenuItem";
+            this.iEToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.iEToolStripMenuItem.Text = "IE";
+            this.iEToolStripMenuItem.Click += new System.EventHandler(this.iEToolStripMenuItem_Click);
+            // 
+            // firefoxToolStripMenuItem
+            // 
+            this.firefoxToolStripMenuItem.Name = "firefoxToolStripMenuItem";
+            this.firefoxToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.firefoxToolStripMenuItem.Text = "Firefox";
+            this.firefoxToolStripMenuItem.Click += new System.EventHandler(this.firefoxToolStripMenuItem_Click);
+            // 
             // m_toolMain
             // 
             this.m_toolMain.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
@@ -1975,20 +2003,12 @@
             this.m_richEntryView.KeyDown += new System.Windows.Forms.KeyEventHandler(this.OnEntryViewKeyDown);
             this.m_richEntryView.KeyUp += new System.Windows.Forms.KeyEventHandler(this.OnEntryViewKeyUp);
             // 
-            // parseToolStripMenuItem
+            // chromeToolStripMenuItem
             // 
-            this.parseToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.iEToolStripMenuItem});
-            this.parseToolStripMenuItem.Name = "parseToolStripMenuItem";
-            this.parseToolStripMenuItem.Size = new System.Drawing.Size(47, 20);
-            this.parseToolStripMenuItem.Text = "Parse";
-            // 
-            // iEToolStripMenuItem
-            // 
-            this.iEToolStripMenuItem.Name = "iEToolStripMenuItem";
-            this.iEToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
-            this.iEToolStripMenuItem.Text = "IE";
-            this.iEToolStripMenuItem.Click += new System.EventHandler(this.iEToolStripMenuItem_Click);
+            this.chromeToolStripMenuItem.Name = "chromeToolStripMenuItem";
+            this.chromeToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.chromeToolStripMenuItem.Text = "Chrome";
+            this.chromeToolStripMenuItem.Click += new System.EventHandler(this.chromeToolStripMenuItem_Click);
             // 
             // MainForm
             // 
@@ -2021,9 +2041,11 @@
             this.m_ctxTray.ResumeLayout(false);
             this.m_splitHorizontal.Panel1.ResumeLayout(false);
             this.m_splitHorizontal.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.m_splitHorizontal)).EndInit();
             this.m_splitHorizontal.ResumeLayout(false);
             this.m_splitVertical.Panel1.ResumeLayout(false);
             this.m_splitVertical.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.m_splitVertical)).EndInit();
             this.m_splitVertical.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -2238,6 +2260,8 @@
         private System.Windows.Forms.ToolStripMenuItem m_ctxGroupCollapse;
         private System.Windows.Forms.ToolStripMenuItem parseToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem iEToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem firefoxToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem chromeToolStripMenuItem;
     }
 }
 
